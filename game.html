@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍪 Cookie Empire</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        
+        /* Стили для онлайн статуса */
+        .online-status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        
+        .online-status.online {
+            background: #4CAF50;
+            box-shadow: 0 0 5px #4CAF50;
+        }
+        
+        .online-status.offline {
+            background: #9E9E9E;
+        }
+        
+        .online-status.real-time {
+            background: #2196F3;
+            box-shadow: 0 0 8px #2196F3;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .last-active {
+            font-size: 0.7rem;
+            color: #78909c;
+            margin-top: 2px;
+        }
+        
+        /* Анимация загрузки */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cookie-fall {
+            font-size: 100px;
+            animation: fall 1.5s ease-in-out forwards;
+            position: relative;
+        }
+        
+        @keyframes fall {
+            0% {
+                top: -200px;
+                transform: rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                top: 0;
+                transform: rotate(360deg);
+                opacity: 1;
+            }
+            100% {
+                top: 0;
+                transform: rotate(720deg) scale(30);
+                opacity: 0;
+            }
+        }
+        
+        .loading-text {
+            margin-top: 30px;
+            font-size: 20px;
+            color: #ff9800;
+            opacity: 0;
+            animation: fadeIn 0.5s ease 1.5s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #4a4a4a;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="3" fill="%23a5d6a7" opacity="0.3"/><circle cx="60" cy="40" r="4" fill="%2390caf9" opacity="0.3"/><circle cx="80" cy="70" r="2" fill="%23ffcc80" opacity="0.3"/><circle cx="30" cy="80" r="5" fill="%23ce93d8" opacity="0.3"/></svg>');
+        }
+        
+        /* Шапка */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .leaderboard-btn {
+            background: #2196F3;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 3px 10px rgba(33, 150, 243, 0.3);
+        }
+        
+        .stats-btn {
+            background: #4CAF50;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 3px 10px rgba(76, 175, 80, 0.3);
+        }
+        
+        h1 {
+            color: #5d4037;
+            font-size: 1.8rem;
+            font-weight: 300;
+            text-align: center;
+            flex-grow: 1;
+        }
+        
+        /* Основной контейнер */
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Печенька и статистика */
+        .cookie-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 2px solid #e0e0e0;
+            text-align: center;
+        }
+        
+        .cookie-counter {
+            font-size: 2.5rem;
+            color: #6d4c41;
+            margin-bottom: 15px;
+            font-weight: 300;
+        }
+        
+        .cookie-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .stat-box {
+            background: #f5f5f5;
+            padding: 15px 20px;
+            border-radius: 15px;
+            min-width: 140px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            color: #43a047;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #78909c;
+            font-size: 0.9rem;
+        }
+        
+        /* Печенька */
+        .cookie-container {
+            position: relative;
+            margin: 20px auto;
+            display: inline-block;
+        }
+        
+        .cookie {
+            width: 200px;
+            height: 200px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background-image: url('data:image/svg+xml;utf8,<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="90" fill="%238d6e63"/><circle cx="70" cy="80" r="10" fill="%235d4037"/><circle cx="130" cy="80" r="10" fill="%235d4037"/><path d="M75 130 Q100 155 125 130" stroke="%235d4037" stroke-width="8" fill="none" stroke-linecap="round"/><circle cx="55" cy="55" r="8" fill="%23a1887f"/><circle cx="145" cy="65" r="6" fill="%23a1887f"/><circle cx="120" cy="140" r="5" fill="%23a1887f"/><circle cx="85" cy="145" r="7" fill="%23a1887f"/><circle cx="45" cy="120" r="9" fill="%23a1887f"/></svg>');
+            filter: drop-shadow(0 5px 15px rgba(93, 64, 55, 0.2));
+            border-radius: 50%;
+        }
+        
+        .cookie:hover {
+            transform: scale(1.05);
+        }
+        
+        .cookie:active {
+            transform: scale(0.95);
+            filter: drop-shadow(0 2px 8px rgba(93, 64, 55, 0.2));
+        }
+        
+        /* Энергия внизу */
+        .energy-panel {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 12px 20px;
+            margin: 15px auto;
+            border: 2px solid #4CAF50;
+            max-width: 400px;
+        }
+        
+        .energy-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .energy-container {
+            height: 15px;
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+            width: 100%;
+            border-radius: 8px;
+            transition: width 0.3s;
+        }
+        
+        .energy-text {
+            color: #2E7D32;
+            font-weight: bold;
+        }
+        
+        /* Нижнее меню */
+        .bottom-menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            border-top: 2px solid #e0e0e0;
+            padding: 12px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 100;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .menu-btn {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .menu-btn.active {
+            background: #4CAF50;
+            color: white;
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        .menu-btn:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Модальные окна */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 900;
+            overflow-y: auto;
+        }
+        
+        .modal-overlay.active {
+            display: block;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 25px;
+            padding: 25px;
+            width: 95%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        
+        /* ФИКС ПРОКРУТКИ - нормальный скроллбар */
+        .modal::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        .modal::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        
+        .modal::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        
+        .modal::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .modal.active {
+            display: block;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            border-radius: 25px 25px 0 0;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            color: #5d4037;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #78909c;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 11;
+        }
+        
+        .close-btn:hover {
+            background: #f5f5f5;
+        }
+        
+        .modal-content {
+            max-height: calc(80vh - 80px);
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        /* ФИКС ПРОКРУТКИ В КОНТЕНТЕ */
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .modal-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 4px;
+        }
+        
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #388E3C;
+        }
+        
+        /* Сетка для магазина и бустов */
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .shop-item {
+            background: white;
+            border-radius: 15px;
+            padding: 18px;
+            border-left: 5px solid #ff9800;
+            transition: all 0.3s;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+            position: relative;
+        }
+        
+        .shop-item.locked {
+            opacity: 0.7;
+            border-left-color: #bdbdbd;
+        }
+        
+        .shop-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .shop-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #5d4037;
+        }
+        
+        .shop-name {
+            font-size: 1.1rem;
+            color: #5d4037;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .shop-desc {
+            color: #757575;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+        
+        .shop-cost {
+            color: #e53935;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 10px 0;
+        }
+        
+        .shop-btn {
+            background: linear-gradient(to right, #4CAF50, #2E7D32);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .shop-btn.red {
+            background: linear-gradient(to right, #e53935, #c62828);
+        }
+        
+        .shop-btn.red:hover:not(:disabled) {
+            background: linear-gradient(to right, #d32f2f, #b71c1c);
+        }
+        
+        .shop-btn:hover:not(:disabled) {
+            background: linear-gradient(to right, #388E3C, #1B5E20);
+            transform: translateY(-2px);
+        }
+        
+        .shop-btn:disabled {
+            background: #bdbdbd;
+            cursor: not-allowed;
+        }
+        
+        /* Престиж */
+        .prestige-card {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            border: 2px solid #9c27b0;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .prestige-requirement {
+            font-size: 1.8rem;
+            color: #9c27b0;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .prestige-btn {
+            background: linear-gradient(to right, #9c27b0, #7b1fa2);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .prestige-btn:hover:not(:disabled) {
+            background: linear-gradient(to right, #7b1fa2, #6a1b9a);
+            transform: translateY(-3px);
+        }
+        
+        .prestige-btn:disabled {
+            background: #bdbdbd;
+            cursor: not-allowed;
+        }
+        
+        /* Прокачка престижа */
+        .prestige-upgrades {
+            margin-top: 25px;
+        }
+        
+        .upgrade-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .upgrade-info {
+            flex: 1;
+        }
+        
+        .upgrade-info h4 {
+            margin-bottom: 5px;
+            color: #5d4037;
+        }
+        
+        .upgrade-info p {
+            color: #757575;
+            font-size: 0.85rem;
+        }
+        
+        .upgrade-cost {
+            color: #9c27b0;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+        
+        .upgrade-btn {
+            background: linear-gradient(to right, #9c27b0, #7b1fa2);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 100px;
+        }
+        
+        .upgrade-btn:disabled {
+            background: #bdbdbd;
+            cursor: not-allowed;
+        }
+        
+        /* Достижения */
+        .achievement-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .achievement-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-left: 5px solid #ff9800;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .achievement-item.locked {
+            opacity: 0.7;
+            border-left-color: #bdbdbd;
+        }
+        
+        .achievement-icon {
+            font-size: 32px;
+        }
+        
+        .achievement-info h4 {
+            margin-bottom: 5px;
+            color: #5d4037;
+        }
+        
+        .achievement-info p {
+            color: #757575;
+            font-size: 0.85rem;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1100;
+            transform: translateX(150%);
+            transition: transform 0.5s ease;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.prestige {
+            background: #9c27b0;
+        }
+        
+        .notification.achievement {
+            background: #ff9800;
+        }
+        
+        .notification.energy {
+            background: #2196F3;
+        }
+        
+        .notification.offline {
+            background: #FF5722;
+            max-width: 350px;
+        }
+        
+        /* Анимация клика */
+        .click-effect {
+            position: absolute;
+            color: #ff9800;
+            font-weight: bold;
+            font-size: 22px;
+            pointer-events: none;
+            z-index: 10;
+            animation: floatUp 1s ease-out forwards;
+        }
+        
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-80px) scale(1.3);
+            }
+        }
+        
+        /* Информация о предметах */
+        .item-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        
+        .item-count {
+            color: #ff9800;
+            font-weight: bold;
+        }
+        
+        .unlock-info {
+            background: #E3F2FD;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #1976D2;
+            text-align: left;
+        }
+        
+        /* Офлайн-доход */
+        .offline-income-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            animation: fadeInOverlay 0.5s ease forwards;
+        }
+        
+        @keyframes fadeInOverlay {
+            to { opacity: 1; }
+        }
+        
+        .offline-income-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            transform: scale(0.8);
+            animation: popIn 0.5s ease 0.3s forwards;
+        }
+        
+        @keyframes popIn {
+            to { transform: scale(1); }
+        }
+        
+        .offline-title {
+            font-size: 1.8rem;
+            color: #FF5722;
+            margin-bottom: 15px;
+        }
+        
+        .offline-subtitle {
+            color: #757575;
+            margin-bottom: 25px;
+            font-size: 1rem;
+        }
+        
+        .offline-income-amount {
+            font-size: 3rem;
+            color: #4CAF50;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+        }
+        
+        .offline-time {
+            color: #78909c;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+        
+        .claim-offline-btn {
+            background: linear-gradient(to right, #FF5722, #FF9800);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .claim-offline-btn:hover {
+            background: linear-gradient(to right, #E64A19, #F57C00);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(255, 87, 34, 0.3);
+        }
+        
+        /* Таблица лидеров */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .leaderboard-table th {
+            background: #f5f5f5;
+            padding: 12px 15px;
+            text-align: left;
+            color: #5d4037;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .leaderboard-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .leaderboard-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .leaderboard-table tr:hover {
+            background: #f0f0f0;
+        }
+        
+        .player-rank {
+            width: 50px;
+            font-weight: bold;
+            color: #FF9800;
+        }
+        
+        .player-name {
+            font-weight: 500;
+        }
+        
+        .player-score {
+            text-align: right;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .current-player {
+            background: #E8F5E9 !important;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .refresh-leaderboard-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 15px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .refresh-leaderboard-btn:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 480px) {
+            .items-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .cookie {
+                width: 170px;
+                height: 170px;
+            }
+            
+            .cookie-counter {
+                font-size: 2rem;
+            }
+            
+            .stat-box {
+                min-width: 120px;
+                padding: 12px 15px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .menu-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 22px;
+            }
+            
+            .modal {
+                padding: 20px;
+                width: 90%;
+            }
+            
+            .upgrade-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .upgrade-cost {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            
+            .upgrade-btn {
+                width: 100%;
+            }
+            
+            .leaderboard-table th,
+            .leaderboard-table td {
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+            
+            .offline-income-card {
+                padding: 20px;
+            }
+            
+            .offline-income-amount {
+                font-size: 2.2rem;
+            }
+            
+            .header {
+                padding: 12px 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .items-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Анимация загрузки -->
+    <div id="loadingScreen">
+        <div class="cookie-fall">🍪</div>
+        <div class="loading-text">Загрузка...</div>
+    </div>
+
+    <!-- Офлайн доход -->
+    <div id="offlineIncomeOverlay" class="offline-income-overlay" style="display: none;">
+        <div class="offline-income-card">
+            <div class="offline-title">🍪 Вас не было!</div>
+            <div class="offline-subtitle">Пока вы отсутствовали, ваша империя продолжала работать</div>
+            <div class="offline-income-amount" id="offlineIncomeAmount">+0 печенек</div>
+            <div class="offline-time" id="offlineTime">0 минут</div>
+            <button class="claim-offline-btn" id="claimOfflineBtn">ЗАБРАТЬ ДОХОД</button>
+        </div>
+    </div>
+
+    <!-- Шапка -->
+    <div class="header">
+        <button class="leaderboard-btn" id="leaderboardBtn">👑</button>
+        <h1>🍪 Cookie Empire</h1>
+        <button class="stats-btn" id="statsBtn">📊</button>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="main-container">
+        <div class="cookie-section">
+            <div class="cookie-counter" id="cookieCounter">0 печенек</div>
+            
+            <div class="cookie-stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="cpsValue">0</div>
+                    <div class="stat-label">Печенек/час</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="cpcValue">+1</div>
+                    <div class="stat-label">За клик</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="prestigeValue">0</div>
+                    <div class="stat-label">Престиж</div>
+                </div>
+            </div>
+            
+            <div class="cookie-container">
+                <div class="cookie" id="cookie"></div>
+            </div>
+            
+            <!-- Энергия -->
+            <div class="energy-panel">
+                <div class="energy-info">
+                    <span>Энергия</span>
+                    <span class="energy-text" id="energyText">500/500</span>
+                </div>
+                <div class="energy-container">
+                    <div class="energy-fill" id="energyFill" style="width: 100%"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 0.8rem; color: #78909c;">
+                    Доход в час: <span id="perHour">0</span> | Восстановление: <span id="energyRateText">1/3с</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Нижнее меню -->
+    <div class="bottom-menu">
+        <button class="menu-btn active" id="menuShop">🛒</button>
+        <button class="menu-btn" id="menuBoosts">⚡</button>
+        <button class="menu-btn" id="menuAchievements">🏆</button>
+        <button class="menu-btn" id="menuPrestige">⭐</button>
+    </div>
+
+    <!-- Оверлей для модальных окон -->
+    <div class="modal-overlay" id="modalOverlay"></div>
+
+    <!-- Модальное окно магазина -->
+    <div class="modal" id="shopModal">
+        <div class="modal-header">
+            <h2 class="modal-title">🛒 Магазин улучшений</h2>
+            <button class="close-btn" data-modal="shopModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="items-grid" id="shopGrid"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно бустов -->
+    <div class="modal" id="boostsModal">
+        <div class="modal-header">
+            <h2 class="modal-title">⚡ Временные бусты</h2>
+            <button class="close-btn" data-modal="boostsModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="items-grid" id="boostsGrid"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно достижений -->
+    <div class="modal" id="achievementsModal">
+        <div class="modal-header">
+            <h2 class="modal-title">🏆 Достижения</h2>
+            <button class="close-btn" data-modal="achievementsModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="achievement-grid" id="achievementsList"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно престижа -->
+    <div class="modal" id="prestigeModal">
+        <div class="modal-header">
+            <h2 class="modal-title">⭐ Система престижа</h2>
+            <button class="close-btn" data-modal="prestigeModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div class="prestige-card">
+                <div class="prestige-requirement" id="prestigeRequirement">10,000</div>
+                <p style="color: #757575; margin-bottom: 10px;">печенек для престижа</p>
+                <div style="color: #43a047; font-size: 1.1rem; margin-bottom: 15px;" id="prestigeBonus">
+                    Текущий бонус: +0%
+                </div>
+                <div style="color: #9c27b0; font-size: 1.1rem; margin-bottom: 15px;">
+                    Очков престижа: <span id="prestigePoints">0</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="prestigeProgress"></div>
+                </div>
+                <div style="margin: 10px 0; color: #78909c; font-size: 0.9rem;" id="prestigeProgressText">
+                    Прогресс: 0%
+                </div>
+                <button class="prestige-btn" id="prestigeResetBtn" disabled>
+                    Сбросить и получить престиж
+                </button>
+                <div style="margin-top: 15px; font-size: 0.9rem; color: #9c27b0;">
+                    Уровень престижа: <span id="prestigeCount">0</span>
+                </div>
+            </div>
+            
+            <!-- Прокачка престижа -->
+            <div class="prestige-upgrades">
+                <h3 style="color: #5d4037; margin-bottom: 15px; text-align: center;">Прокачка престижа</h3>
+                <div id="prestigeUpgradesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно статистики -->
+    <div class="modal" id="statsModal">
+        <div class="modal-header">
+            <h2 class="modal-title">📊 Статистика игры</h2>
+            <button class="close-btn" data-modal="statsModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                <div class="shop-item">
+                    <div class="stat-value" id="statClicks">0</div>
+                    <div class="stat-label">Всего кликов</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statCookies">0</div>
+                    <div class="stat-label">Текущие печеньки</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statTotalCookiesEver">0</div>
+                    <div class="stat-label">Всего заработано</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statTime">0:00</div>
+                    <div class="stat-label">Время игры</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statLevel">1</div>
+                    <div class="stat-label">Уровень игры</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statMaxCPS">0</div>
+                    <div class="stat-label">Макс. печенек/час</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statEnergy">500</div>
+                    <div class="stat-label">Макс. энергия</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statBoosts">0</div>
+                    <div class="stat-label">Бустов использовано</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statUpgrades">0</div>
+                    <div class="stat-label">Улучшений куплено</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statPrestigeCount">0</div>
+                    <div class="stat-label">Престижей</div>
+                </div>
+                <div class="shop-item">
+                    <div class="stat-value" id="statCriticalHits">0</div>
+                    <div class="stat-label">Крит. ударов</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 10px;">
+                <h3 style="color: #5d4037; margin-bottom: 10px; font-size: 1.1rem;">Информация об игре</h3>
+                <p style="color: #757575; font-size: 0.85rem; line-height: 1.4;">
+                    • Текущая энергия: <span id="infoCurrentEnergy">500</span>/<span id="infoMaxEnergy">500</span><br>
+                    • Восстановление: <span id="infoEnergyRate">1</span> печенька в 3 секунды<br>
+                    • Доход в час: <span id="infoPerHour">0</span> печенек<br>
+                    • Следующий престиж: <span id="infoNextPrestige">10,000</span> печенек<br>
+                    • Бонус от престижа: +<span id="infoPrestigeBonus">0</span>%
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно таблицы лидеров -->
+    <div class="modal" id="leaderboardModal">
+        <div class="modal-header">
+            <h2 class="modal-title">👑 Таблица лидеров</h2>
+            <button class="close-btn" data-modal="leaderboardModal">&times;</button>
+        </div>
+        <div class="modal-content">
+            <div style="margin-bottom: 15px; text-align: center;">
+                <div style="font-size: 1.1rem; color: #5d4037; margin-bottom: 5px;">
+                    Ваше место: <span id="playerRank">-</span>
+                </div>
+                <div style="font-size: 0.9rem; color: #78909c;" id="leaderboardStats">
+                    Загрузка статистики...
+                </div>
+            </div>
+            
+            <table class="leaderboard-table" id="leaderboardTable">
+                <thead>
+                    <tr>
+                        <th class="player-rank">#</th>
+                        <th class="player-name">Игрок</th>
+                        <th class="player-score">Печенек</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+            
+            <button class="refresh-leaderboard-btn" id="refreshLeaderboardBtn">
+                🔄 Обновить сейчас
+            </button>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 10px;">
+                <h3 style="color: #5d4037; margin-bottom: 10px; font-size: 1.1rem;">Как это работает?</h3>
+                <p style="color: #757575; font-size: 0.85rem; line-height: 1.4;">
+                    • Таблица показывает всех игроков игры<br>
+                    • <span class="online-status real-time" style="display: inline-block;"></span> — вы в сети<br>
+                    • <span class="online-status offline" style="display: inline-block;"></span> — игрок не в сети<br>
+                    • Данные обновляются автоматически каждые 30 секунд<br>
+                    • При закрытии игры вы остаетесь в таблице
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомление -->
+    <div class="notification" id="notification">
+        <span id="notificationText">Уведомление</span>
+    </div>
+
+    <script>
+        // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+        // Проверяем, работаем ли в Telegram Web App
+        const isTelegram = typeof window.Telegram !== 'undefined' && 
+                          typeof window.Telegram.WebApp !== 'undefined';
+        
+        // Глобальная таблица лидеров
+        let globalLeaderboard = [];
+        let leaderboardSyncInterval = null;
+        let playerTelegramData = null;
+        
+        // ========== ПЕРЕМЕННЫЕ ИГРЫ ==========
+        let cookies = 0;
+        let cookiesPerHour = 0;
+        let cookiesPerClick = 1;
+        let totalClicks = 0;
+        let totalCookiesEver = 0;
+        let playTime = 0;
+        let gameLevel = 1;
+        let maxCPH = 0;
+        
+        // Энергия
+        let maxEnergy = 500;
+        let currentEnergy = 500;
+        let energyRestoreRate = 1;
+        let energyPerClick = 1;
+        
+        // Престиж
+        let prestigeCount = 0;
+        let prestigePoints = 0;
+        let prestigeBonus = 1.0;
+        let prestigeRequirement = 10000;
+        
+        // Офлайн доход
+        let lastSaveTime = Date.now();
+        let offlineIncome = 0;
+        let offlineNotificationShown = false;
+        
+        // Восстановление энергии в офлайне
+        let energyRestoreStartTime = Date.now();
+        let energyAtSave = 500;
+        
+        // Игрок
+        let playerId = null;
+        let playerName = "Игрок";
+        
+        // Прокачка престижа
+        const prestigeUpgrades = [
+            { 
+                id: 1, 
+                name: "+5% к доходу", 
+                desc: "Увеличивает общий доход на 5% за уровень", 
+                baseCost: 1, 
+                count: 0, 
+                maxLevel: 100,
+                effect: "incomeMultiplier",
+                value: 0.05
+            },
+            { 
+                id: 2, 
+                name: "+5% к клику", 
+                desc: "Увеличивает силу клика на 5% за уровень", 
+                baseCost: 1, 
+                count: 0, 
+                maxLevel: 100,
+                effect: "clickMultiplier",
+                value: 0.05
+            }
+        ];
+        
+        // Магазин улучшений
+        const shopItems = [
+            { 
+                id: 1, 
+                name: "Помощник", 
+                desc: "+1 печенька в час", 
+                icon: "👨‍🍳", 
+                baseCost: 15,
+                count: 0, 
+                effect: "cph", 
+                value: 1,
+                unlockId: "assistant",
+                requires: null,
+                requiresCount: 0,
+                unlocked: true
+            },
+            { 
+                id: 2, 
+                name: "Бабушка", 
+                desc: "+5 печенек в час", 
+                icon: "👵", 
+                baseCost: 100,
+                count: 0, 
+                effect: "cph", 
+                value: 5,
+                unlockId: "grandma",
+                requires: "assistant",
+                requiresCount: 10,
+                unlocked: false
+            }
+        ];
+        
+        // Бусты
+        const boosts = [
+            { 
+                id: 1, 
+                name: "Кофе x2", 
+                desc: "x2 к клику на 30 секунд", 
+                icon: "☕", 
+                cost: 100,
+                duration: 30, 
+                effect: "clickMultiplier", 
+                value: 2,
+                unlockId: "coffee",
+                requires: null,
+                requiresCount: 0,
+                unlocked: true
+            }
+        ];
+        
+        // Активные бусты
+        let activeBoosts = {
+            clickMultiplier: { active: false, timeLeft: 0, value: 1 }
+        };
+        
+        // Статистика для разблокировки бустов
+        let boostUsageCount = {
+            coffee: 0
+        };
+        
+        // ДОСТИЖЕНИЯ
+        const achievements = [
+            { id: 1, name: "Новичок", desc: "Собрать 100 печенек", icon: "🥉", goal: 100, unlocked: false, reward: 50 }
+        ];
+        
+        let totalBoostsUsed = 0;
+        let totalUpgradesBought = 0;
+        let totalCriticalHits = 0;
+        let totalEnergyRestored = 0;
+        
+        // Скидка от престижа
+        let shopDiscount = 1.0;
+        
+        // Пассивный доход
+        let passiveIncomeMultiplier = 1.0;
+        
+        // Множитель стоимости улучшений
+        let upgradeCostMultiplier = 1.15;
+        
+        // ========== ЭЛЕМЕНТЫ DOM ==========
+        const loadingScreen = document.getElementById('loadingScreen');
+        const cookie = document.getElementById('cookie');
+        const cookieCounter = document.getElementById('cookieCounter');
+        const cpsValue = document.getElementById('cpsValue');
+        const cpcValue = document.getElementById('cpcValue');
+        const prestigeValue = document.getElementById('prestigeValue');
+        const energyText = document.getElementById('energyText');
+        const energyFill = document.getElementById('energyFill');
+        const perHour = document.getElementById('perHour');
+        const energyRateText = document.getElementById('energyRateText');
+        
+        const modalOverlay = document.getElementById('modalOverlay');
+        const shopModal = document.getElementById('shopModal');
+        const boostsModal = document.getElementById('boostsModal');
+        const achievementsModal = document.getElementById('achievementsModal');
+        const prestigeModal = document.getElementById('prestigeModal');
+        const statsModal = document.getElementById('statsModal');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        
+        const menuBtns = document.querySelectorAll('.menu-btn');
+        const menuShop = document.getElementById('menuShop');
+        const menuBoosts = document.getElementById('menuBoosts');
+        const menuAchievements = document.getElementById('menuAchievements');
+        const menuPrestige = document.getElementById('menuPrestige');
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
+        const statsBtn = document.getElementById('statsBtn');
+        
+        const prestigeRequirementElem = document.getElementById('prestigeRequirement');
+        const prestigeBonusElem = document.getElementById('prestigeBonus');
+        const prestigeProgress = document.getElementById('prestigeProgress');
+        const prestigeProgressText = document.getElementById('prestigeProgressText');
+        const prestigeCountElem = document.getElementById('prestigeCount');
+        const prestigePointsElem = document.getElementById('prestigePoints');
+        const prestigeResetBtn = document.getElementById('prestigeResetBtn');
+        const prestigeUpgradesList = document.getElementById('prestigeUpgradesList');
+        
+        const statClicks = document.getElementById('statClicks');
+        const statCookies = document.getElementById('statCookies');
+        const statTotalCookiesEver = document.getElementById('statTotalCookiesEver');
+        const statTime = document.getElementById('statTime');
+        const statLevel = document.getElementById('statLevel');
+        const statMaxCPS = document.getElementById('statMaxCPS');
+        const statEnergy = document.getElementById('statEnergy');
+        const statBoosts = document.getElementById('statBoosts');
+        const statUpgrades = document.getElementById('statUpgrades');
+        const statPrestigeCount = document.getElementById('statPrestigeCount');
+        const statCriticalHits = document.getElementById('statCriticalHits');
+        
+        const infoCurrentEnergy = document.getElementById('infoCurrentEnergy');
+        const infoMaxEnergy = document.getElementById('infoMaxEnergy');
+        const infoEnergyRate = document.getElementById('infoEnergyRate');
+        const infoPerHourElem = document.getElementById('infoPerHour');
+        const infoNextPrestige = document.getElementById('infoNextPrestige');
+        const infoPrestigeBonus = document.getElementById('infoPrestigeBonus');
+        
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        
+        // Офлайн доход элементы
+        const offlineIncomeOverlay = document.getElementById('offlineIncomeOverlay');
+        const offlineIncomeAmount = document.getElementById('offlineIncomeAmount');
+        const offlineTime = document.getElementById('offlineTime');
+        const claimOfflineBtn = document.getElementById('claimOfflineBtn');
+        
+        // Таблица лидеров элементы
+        const playerRankElement = document.getElementById('playerRank');
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        const refreshLeaderboardBtn = document.getElementById('refreshLeaderboardBtn');
+        const leaderboardStats = document.getElementById('leaderboardStats');
+        
+        // ========== ТЕЛЕГРАМ ИНТЕГРАЦИЯ ==========
+        function getTelegramUserData() {
+            if (!isTelegram) return null;
+            
+            try {
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (user) {
+                    return {
+                        id: user.id,
+                        username: user.username || `User${user.id}`,
+                        firstName: user.first_name || 'Игрок',
+                        lastName: user.last_name || '',
+                        photoUrl: user.photo_url
+                    };
+                }
+            } catch (error) {
+                console.error('Ошибка получения данных Telegram:', error);
+            }
+            return null;
+        }
+        
+        // ========== ГЛОБАЛЬНАЯ ТАБЛИЦА ЛИДЕРОВ ==========
+        async function loadGlobalLeaderboard() {
+            try {
+                if (isTelegram && window.Telegram.WebApp.CloudStorage) {
+                    const result = await window.Telegram.WebApp.CloudStorage.getItem('cookie_leaderboard');
+                    if (result) {
+                        globalLeaderboard = JSON.parse(result) || [];
+                        return true;
+                    }
+                }
+                
+                const localLeaderboard = localStorage.getItem('cookie_global_leaderboard');
+                if (localLeaderboard) {
+                    globalLeaderboard = JSON.parse(localLeaderboard);
+                    return true;
+                }
+                
+                globalLeaderboard = [];
+                return true;
+            } catch (error) {
+                console.error('Ошибка загрузки таблицы лидеров:', error);
+                globalLeaderboard = [];
+                return false;
+            }
+        }
+        
+        async function saveGlobalLeaderboard() {
+            try {
+                if (globalLeaderboard.length > 100) {
+                    globalLeaderboard = globalLeaderboard.slice(0, 100);
+                }
+                
+                const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+                globalLeaderboard = globalLeaderboard.filter(player => 
+                    player.lastUpdate > sevenDaysAgo
+                );
+                
+                if (isTelegram && window.Telegram.WebApp.CloudStorage) {
+                    await window.Telegram.WebApp.CloudStorage.setItem(
+                        'cookie_leaderboard', 
+                        JSON.stringify(globalLeaderboard)
+                    );
+                }
+                
+                localStorage.setItem('cookie_global_leaderboard', JSON.stringify(globalLeaderboard));
+                return true;
+            } catch (error) {
+                console.error('Ошибка сохранения таблицы лидеров:', error);
+                try {
+                    localStorage.setItem('cookie_global_leaderboard', JSON.stringify(globalLeaderboard));
+                } catch (e) {}
+                return false;
+            }
+        }
+        
+        async function updatePlayerInGlobalLeaderboard() {
+            try {
+                const telegramData = getTelegramUserData();
+                
+                if (telegramData) {
+                    playerId = `tg_${telegramData.id}`;
+                    playerName = telegramData.firstName + (telegramData.lastName ? ` ${telegramData.lastName}` : '');
+                    if (telegramData.username) {
+                        playerName += ` (@${telegramData.username})`;
+                    }
+                    playerTelegramData = telegramData;
+                } else {
+                    if (!playerId) {
+                        playerId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        playerName = "Анонимный игрок";
+                    }
+                }
+                
+                let playerIndex = globalLeaderboard.findIndex(p => p.id === playerId);
+                const now = Date.now();
+                
+                if (playerIndex === -1) {
+                    globalLeaderboard.push({
+                        id: playerId,
+                        name: playerName,
+                        cookies: totalCookiesEver,
+                        prestige: prestigeCount,
+                        level: gameLevel,
+                        lastUpdate: now,
+                        firstSeen: now,
+                        isOnline: true,
+                        telegramData: telegramData
+                    });
+                } else {
+                    globalLeaderboard[playerIndex] = {
+                        ...globalLeaderboard[playerIndex],
+                        name: playerName,
+                        cookies: totalCookiesEver,
+                        prestige: prestigeCount,
+                        level: gameLevel,
+                        lastUpdate: now,
+                        isOnline: true,
+                        telegramData: telegramData
+                    };
+                }
+                
+                globalLeaderboard.sort((a, b) => b.cookies - a.cookies);
+                await saveGlobalLeaderboard();
+                
+                const playerRank = globalLeaderboard.findIndex(p => p.id === playerId) + 1;
+                if (playerRank <= 10) {
+                    showNotification(`Ваш рейтинг: #${playerRank} 🏆`, "achievement");
+                }
+                
+                return playerRank;
+            } catch (error) {
+                console.error('Ошибка обновления игрока в таблице:', error);
+                return -1;
+            }
+        }
+        
+        async function syncLeaderboard() {
+            try {
+                await updatePlayerInGlobalLeaderboard();
+                
+                const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                globalLeaderboard.forEach(player => {
+                    if (player.lastUpdate < fiveMinutesAgo) {
+                        player.isOnline = false;
+                    }
+                });
+                
+                if (leaderboardModal && leaderboardModal.classList.contains('active')) {
+                    updateLeaderboardDisplay();
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Ошибка синхронизации таблицы:', error);
+                return false;
+            }
+        }
+        
+        function formatTimeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            
+            if (diff < 60000) return "только что";
+            if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+            return `${Math.floor(diff / 86400000)} дн назад`;
+        }
+        
+        function updateLeaderboardDisplay() {
+            try {
+                leaderboardBody.innerHTML = '';
+                
+                const playerIndex = globalLeaderboard.findIndex(p => p.id === playerId);
+                const playerRank = playerIndex !== -1 ? playerIndex + 1 : "-";
+                
+                if (playerRankElement) {
+                    playerRankElement.textContent = playerRank;
+                }
+                
+                const displayCount = Math.min(20, globalLeaderboard.length);
+                
+                for (let i = 0; i < displayCount; i++) {
+                    const player = globalLeaderboard[i];
+                    const isCurrentPlayer = player.id === playerId;
+                    
+                    const row = document.createElement('tr');
+                    if (isCurrentPlayer) {
+                        row.className = 'current-player';
+                    }
+                    
+                    let rankIcon = "";
+                    if (i === 0) rankIcon = "👑";
+                    else if (i === 1) rankIcon = "🥈";
+                    else if (i === 2) rankIcon = "🥉";
+                    
+                    const onlineStatus = player.isOnline ? 
+                        `<span class="online-status real-time" title="В сети"></span>` : 
+                        `<span class="online-status offline" title="Не в сети"></span>`;
+                    
+                    const lastActive = formatTimeAgo(player.lastUpdate);
+                    
+                    row.innerHTML = `
+                        <td class="player-rank">${rankIcon} ${i + 1}</td>
+                        <td class="player-name">
+                            ${onlineStatus} ${player.name}
+                            ${isCurrentPlayer ? "<strong>(Вы)</strong>" : ""}
+                            <div class="last-active">${lastActive}</div>
+                        </td>
+                        <td class="player-score">${formatNumber(player.cookies)}</td>
+                    `;
+                    leaderboardBody.appendChild(row);
+                }
+                
+                if (playerIndex !== -1 && playerIndex >= 20) {
+                    const player = globalLeaderboard[playerIndex];
+                    const onlineStatus = player.isOnline ? 
+                        `<span class="online-status real-time" title="В сети"></span>` : 
+                        `<span class="online-status offline" title="Не в сети"></span>`;
+                    const lastActive = formatTimeAgo(player.lastUpdate);
+                    
+                    const separator = document.createElement('tr');
+                    separator.innerHTML = `<td colspan="3" style="text-align: center; color: #78909c; padding: 10px;">...</td>`;
+                    leaderboardBody.appendChild(separator);
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'current-player';
+                    row.innerHTML = `
+                        <td class="player-rank">${playerIndex + 1}</td>
+                        <td class="player-name">
+                            ${onlineStatus} ${player.name} <strong>(Вы)</strong>
+                            <div class="last-active">${lastActive}</div>
+                        </td>
+                        <td class="player-score">${formatNumber(player.cookies)}</td>
+                    `;
+                    leaderboardBody.appendChild(row);
+                }
+                
+                if (globalLeaderboard.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td colspan="3" style="text-align: center; padding: 30px; color: #78909c;">
+                            Пока никого нет в таблице лидеров. Будьте первым!
+                        </td>
+                    `;
+                    leaderboardBody.appendChild(row);
+                }
+                
+                updateLeaderboardStats();
+                
+            } catch (error) {
+                console.error('Ошибка обновления отображения таблицы:', error);
+            }
+        }
+        
+        function updateLeaderboardStats() {
+            const totalPlayers = globalLeaderboard.length;
+            const onlinePlayers = globalLeaderboard.filter(p => p.isOnline).length;
+            
+            if (leaderboardStats) {
+                leaderboardStats.innerHTML = `
+                    Всего игроков: ${totalPlayers} | Онлайн: ${onlinePlayers}
+                `;
+            }
+        }
+        
+        async function initLeaderboardSystem() {
+            console.log('Инициализация системы лидеров...');
+            
+            await loadGlobalLeaderboard();
+            const rank = await updatePlayerInGlobalLeaderboard();
+            
+            if (leaderboardSyncInterval) {
+                clearInterval(leaderboardSyncInterval);
+            }
+            
+            leaderboardSyncInterval = setInterval(async () => {
+                await syncLeaderboard();
+            }, 30000);
+            
+            document.addEventListener('visibilitychange', async () => {
+                if (!document.hidden) {
+                    await syncLeaderboard();
+                }
+            });
+            
+            console.log('Система лидеров инициализирована, ваш рейтинг:', rank);
+            return rank;
+        }
+        
+        async function refreshLeaderboard() {
+            showNotification("Обновляем таблицу лидеров... 🔄");
+            await syncLeaderboard();
+            updateLeaderboardDisplay();
+            showNotification("Таблица лидеров обновлена! 👑");
+        }
+        
+        // ========== СИСТЕМА СОХРАНЕНИЯ ==========
+        function saveGame() {
+            try {
+                lastSaveTime = Date.now();
+                energyAtSave = currentEnergy;
+                energyRestoreStartTime = Date.now();
+                
+                const gameData = {
+                    cookies: cookies,
+                    cookiesPerHour: cookiesPerHour,
+                    cookiesPerClick: cookiesPerClick,
+                    totalClicks: totalClicks,
+                    totalCookiesEver: totalCookiesEver,
+                    playTime: playTime,
+                    gameLevel: gameLevel,
+                    maxCPH: maxCPH,
+                    
+                    maxEnergy: maxEnergy,
+                    currentEnergy: currentEnergy,
+                    energyRestoreRate: energyRestoreRate,
+                    
+                    prestigeCount: prestigeCount,
+                    prestigePoints: prestigePoints,
+                    prestigeBonus: prestigeBonus,
+                    prestigeRequirement: prestigeRequirement,
+                    
+                    shopItems: shopItems,
+                    
+                    boosts: boosts,
+                    activeBoosts: activeBoosts,
+                    boostUsageCount: boostUsageCount,
+                    
+                    achievements: achievements,
+                    
+                    totalBoostsUsed: totalBoostsUsed,
+                    totalUpgradesBought: totalUpgradesBought,
+                    totalCriticalHits: totalCriticalHits,
+                    totalEnergyRestored: totalEnergyRestored,
+                    
+                    shopDiscount: shopDiscount,
+                    passiveIncomeMultiplier: passiveIncomeMultiplier,
+                    prestigeUpgrades: prestigeUpgrades,
+                    
+                    lastSaveTime: lastSaveTime,
+                    energyRestoreStartTime: energyRestoreStartTime,
+                    energyAtSave: currentEnergy,
+                    
+                    version: "1.5"
+                };
+                
+                localStorage.setItem('cookieEmpire_save', JSON.stringify(gameData));
+                
+                syncLeaderboard();
+                
+            } catch (error) {
+                console.error("Ошибка сохранения:", error);
+            }
+        }
+        
+        function loadGame() {
+            try {
+                const savedData = localStorage.getItem('cookieEmpire_save');
+                if (!savedData) return false;
+                
+                const gameData = JSON.parse(savedData);
+                
+                if (!gameData.version) return false;
+                
+                cookies = gameData.cookies || 0;
+                cookiesPerHour = gameData.cookiesPerHour || 0;
+                cookiesPerClick = gameData.cookiesPerClick || 1;
+                totalClicks = gameData.totalClicks || 0;
+                totalCookiesEver = gameData.totalCookiesEver || 0;
+                playTime = gameData.playTime || 0;
+                gameLevel = gameData.gameLevel || 1;
+                maxCPH = gameData.maxCPH || 0;
+                
+                maxEnergy = gameData.maxEnergy || 500;
+                energyRestoreRate = gameData.energyRestoreRate || 1;
+                
+                if (gameData.energyRestoreStartTime && gameData.energyAtSave !== undefined) {
+                    const timePassed = Date.now() - gameData.energyRestoreStartTime;
+                    const restoreSeconds = timePassed / 1000;
+                    const restoreAmount = restoreSeconds * (energyRestoreRate / 3);
+                    
+                    currentEnergy = Math.min(maxEnergy, gameData.energyAtSave + restoreAmount);
+                    energyRestoreStartTime = Date.now();
+                } else {
+                    currentEnergy = gameData.currentEnergy || maxEnergy;
+                    energyRestoreStartTime = Date.now();
+                }
+                
+                prestigeCount = gameData.prestigeCount || 0;
+                prestigePoints = gameData.prestigePoints || 0;
+                prestigeBonus = gameData.prestigeBonus || 1.0;
+                prestigeRequirement = gameData.prestigeRequirement || 10000;
+                
+                if (gameData.shopItems) {
+                    shopItems.forEach((item, index) => {
+                        const savedItem = gameData.shopItems.find(si => si.id === item.id);
+                        if (savedItem) {
+                            item.count = savedItem.count || 0;
+                            item.unlocked = savedItem.unlocked !== undefined ? savedItem.unlocked : item.unlocked;
+                        }
+                    });
+                }
+                
+                if (gameData.boosts) {
+                    boosts.forEach((boost, index) => {
+                        const savedBoost = gameData.boosts.find(sb => sb.id === boost.id);
+                        if (savedBoost && savedBoost.unlocked !== undefined) {
+                            boost.unlocked = savedBoost.unlocked;
+                        }
+                    });
+                }
+                
+                if (gameData.activeBoosts) {
+                    Object.keys(activeBoosts).forEach(key => {
+                        if (gameData.activeBoosts[key]) {
+                            activeBoosts[key] = gameData.activeBoosts[key];
+                        }
+                    });
+                }
+                
+                if (gameData.boostUsageCount) {
+                    Object.keys(boostUsageCount).forEach(key => {
+                        if (
