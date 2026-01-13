@@ -1896,4 +1896,920 @@
                 
                 if (gameData.boostUsageCount) {
                     Object.keys(boostUsageCount).forEach(key => {
-                        if (
+                        if (gameData.boostUsageCount[key] !== undefined) {
+                            boostUsageCount[key] = gameData.boostUsageCount[key];
+                        }
+                    });
+                }
+                
+                if (gameData.achievements) {
+                    achievements.forEach((achievement, index) => {
+                        const savedAchievement = gameData.achievements.find(sa => sa.id === achievement.id);
+                        if (savedAchievement) {
+                            achievement.unlocked = savedAchievement.unlocked || false;
+                        }
+                    });
+                }
+                
+                totalBoostsUsed = gameData.totalBoostsUsed || 0;
+                totalUpgradesBought = gameData.totalUpgradesBought || 0;
+                totalCriticalHits = gameData.totalCriticalHits || 0;
+                totalEnergyRestored = gameData.totalEnergyRestored || 0;
+                
+                shopDiscount = gameData.shopDiscount || 1.0;
+                passiveIncomeMultiplier = gameData.passiveIncomeMultiplier || 1.0;
+                
+                if (gameData.prestigeUpgrades) {
+                    prestigeUpgrades.forEach((upgrade, index) => {
+                        const savedUpgrade = gameData.prestigeUpgrades.find(su => su.id === upgrade.id);
+                        if (savedUpgrade) {
+                            upgrade.count = savedUpgrade.count || 0;
+                        }
+                    });
+                }
+                
+                lastSaveTime = gameData.lastSaveTime || Date.now();
+                
+                return true;
+            } catch (error) {
+                console.error("Ошибка загрузки:", error);
+                return false;
+            }
+        }
+        
+        // ========== ОФЛАЙН ДОХОД ==========
+        function calculateOfflineIncome() {
+            const currentTime = Date.now();
+            const timeAway = currentTime - lastSaveTime;
+            const awaySeconds = timeAway / 1000;
+            
+            let incomeMultiplier = activeBoosts.clickMultiplier.value;
+            let currentCPH = cookiesPerHour * incomeMultiplier * prestigeBonus * passiveIncomeMultiplier;
+            let offlineIncomePerSecond = currentCPH / 3600 * 0.6;
+            
+            let income = offlineIncomePerSecond * awaySeconds;
+            income = Math.max(income, 1);
+            
+            const minutes = Math.floor(awaySeconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            let timeText = "";
+            if (days > 0) {
+                timeText = `${days} дн ${hours % 24} ч`;
+            } else if (hours > 0) {
+                timeText = `${hours} ч ${minutes % 60} мин`;
+            } else if (minutes > 0) {
+                timeText = `${minutes} мин ${Math.floor(awaySeconds % 60)} сек`;
+            } else {
+                timeText = `${Math.floor(awaySeconds)} сек`;
+            }
+            
+            return {
+                income: income,
+                seconds: awaySeconds,
+                timeText: timeText
+            };
+        }
+        
+        function showOfflineIncome() {
+            if (offlineNotificationShown) return;
+            
+            const offlineData = calculateOfflineIncome();
+            lastSaveTime = Date.now();
+            
+            offlineIncomeAmount.textContent = `+${formatNumber(offlineData.income)} печенек`;
+            offlineTime.textContent = `Вы отсутствовали: ${offlineData.timeText}`;
+            
+            offlineIncome = offlineData.income;
+            offlineNotificationShown = true;
+            
+            offlineIncomeOverlay.style.display = 'flex';
+            setTimeout(() => {
+                offlineIncomeOverlay.style.opacity = '1';
+            }, 10);
+            
+            showNotification(`Вас не было ${offlineData.timeText}! Заберите доход. 🍪`, "offline");
+        }
+        
+        claimOfflineBtn.addEventListener('click', function() {
+            if (offlineIncome > 0) {
+                cookies += offlineIncome;
+                totalCookiesEver += offlineIncome;
+                
+                offlineIncomeOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    offlineIncomeOverlay.style.display = 'none';
+                }, 500);
+                
+                showNotification(`Получен офлайн доход: +${formatNumber(offlineIncome)} печенек! 🍪`, "offline");
+                
+                updateDisplay();
+                updateStats();
+                
+                offlineIncome = 0;
+                saveGame();
+            }
+        });
+        
+        // ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==========
+        async function initGame() {
+            const loaded = loadGame();
+            
+            setTimeout(async () => {
+                loadingScreen.style.display = 'none';
+                
+                if (loaded) {
+                    showNotification("Игра загружена! Добро пожаловать обратно! 🍪");
+                    setTimeout(() => {
+                        showOfflineIncome();
+                    }, 500);
+                } else {
+                    showNotification("Добро пожаловать в Cookie Empire! 🍪");
+                }
+                
+                initShop();
+                initBoosts();
+                initAchievements();
+                initPrestigeUpgrades();
+                
+                updateDisplay();
+                updateEnergyDisplay();
+                updatePrestigeDisplay();
+                updateStats();
+                
+                await initLeaderboardSystem();
+                
+                if (playerTelegramData) {
+                    showNotification(`Добро пожаловать, ${playerTelegramData.firstName}! 🍪`);
+                }
+            }, 2000);
+            
+            setInterval(gameLoop, 100);
+            setInterval(updateTime, 1000);
+            setInterval(updateEnergy, 3000);
+            setInterval(updateBoosts, 100);
+            
+            setInterval(saveGame, 10000);
+            
+            setInterval(async () => {
+                await syncLeaderboard();
+            }, 30000);
+            
+            setInterval(() => {
+                energyRestoreStartTime = Date.now();
+            }, 1000);
+        }
+        
+        function gameLoop() {
+            let incomeMultiplier = activeBoosts.clickMultiplier.value;
+            let currentCPH = cookiesPerHour * incomeMultiplier * prestigeBonus * passiveIncomeMultiplier;
+            let cookiesPerTick = currentCPH / 36000;
+            
+            cookies += cookiesPerTick;
+            totalCookiesEver += cookiesPerTick;
+            
+            if (currentCPH > maxCPH) {
+                maxCPH = currentCPH;
+            }
+            
+            updateDisplay();
+            checkAchievements();
+        }
+        
+        // ========== СИСТЕМА ЭНЕРГИИ ==========
+        function updateEnergy() {
+            if (currentEnergy < maxEnergy) {
+                let restoreRate = energyRestoreRate;
+                const restoreAmount = restoreRate;
+                currentEnergy = Math.min(maxEnergy, currentEnergy + restoreAmount);
+                totalEnergyRestored += restoreAmount;
+                updateEnergyDisplay();
+            }
+        }
+        
+        function updateEnergyDisplay() {
+            const energyPercent = (currentEnergy / maxEnergy) * 100;
+            energyText.textContent = `${formatNumber(currentEnergy)}/${formatNumber(maxEnergy)}`;
+            energyFill.style.width = `${energyPercent}%`;
+            
+            infoCurrentEnergy.textContent = formatNumber(currentEnergy);
+            infoMaxEnergy.textContent = formatNumber(maxEnergy);
+            
+            let restoreRate = energyRestoreRate;
+            infoEnergyRate.textContent = `${restoreRate.toFixed(1)}/3с`;
+            energyRateText.textContent = `${restoreRate.toFixed(1)}/3с`;
+            
+            let incomeMultiplier = activeBoosts.clickMultiplier.value;
+            const perHourValue = (cookiesPerHour * incomeMultiplier * prestigeBonus * passiveIncomeMultiplier);
+            perHour.textContent = formatNumber(perHourValue);
+            infoPerHourElem.textContent = formatNumber(perHourValue);
+        }
+        
+        // ========== КЛИК ПО ПЕЧЕНЬКЕ ==========
+        cookie.addEventListener('click', function(e) {
+            let energyCost = 1;
+            
+            if (currentEnergy >= energyCost) {
+                let clickValue = cookiesPerClick;
+                
+                if (activeBoosts.clickMultiplier.active) clickValue *= activeBoosts.clickMultiplier.value;
+                clickValue *= prestigeBonus;
+                
+                cookies += clickValue;
+                totalClicks++;
+                totalCookiesEver += clickValue;
+                currentEnergy -= energyCost;
+                
+                createClickEffect(e, clickValue, false);
+                
+                updateDisplay();
+                updateEnergyDisplay();
+                updateStats();
+            }
+        });
+        
+        function createClickEffect(e, value, isCritical = false) {
+            const rect = cookie.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const effect = document.createElement('div');
+            effect.className = 'click-effect';
+            effect.textContent = `+${value.toFixed(1)}`;
+            effect.style.left = x + 'px';
+            effect.style.top = y + 'px';
+            
+            cookie.appendChild(effect);
+            
+            setTimeout(() => effect.remove(), 1000);
+        }
+        
+        // ========== МАГАЗИН ==========
+        function initShop() {
+            const shopGrid = document.getElementById('shopGrid');
+            shopGrid.innerHTML = '';
+            
+            shopItems.forEach(item => {
+                let isUnlocked = checkShopItemUnlock(item);
+                item.unlocked = isUnlocked;
+                
+                const discountMultiplier = 1 - (shopDiscount - 1);
+                const cost = Math.floor(item.baseCost * Math.pow(upgradeCostMultiplier, item.count) * discountMultiplier);
+                const canAfford = cookies >= cost;
+                
+                const currentValue = item.value * (1 + item.count * 0.1);
+                
+                const div = document.createElement('div');
+                div.className = `shop-item ${isUnlocked ? '' : 'locked'}`;
+                
+                let unlockInfo = '';
+                if (!isUnlocked && item.requires) {
+                    const requiredItem = shopItems.find(i => i.unlockId === item.requires);
+                    if (requiredItem) {
+                        const needed = item.requiresCount - requiredItem.count;
+                        if (needed > 0) {
+                            unlockInfo = `<div class="unlock-info">Для разблокировки нужно купить еще ${needed} ${requiredItem.name.toLowerCase()}</div>`;
+                        }
+                    }
+                }
+                
+                let desc = item.desc;
+                if (item.count > 0) {
+                    desc = `+${currentValue.toFixed(1)} печенек ${item.effect === 'cph' ? 'в час' : 'за клик'}`;
+                }
+                
+                div.innerHTML = `
+                    <div class="shop-icon">${item.icon}</div>
+                    <div class="shop-name">${item.name}</div>
+                    <div class="shop-desc">${desc}</div>
+                    <div class="shop-cost">${formatNumber(cost)}</div>
+                    ${unlockInfo}
+                    <div class="item-info">
+                        <span>Уровень:</span>
+                        <span class="item-count">${item.count}</span>
+                    </div>
+                    <button class="shop-btn ${!canAfford && isUnlocked ? 'red' : ''}" data-id="${item.id}" ${!isUnlocked ? 'disabled' : ''}>
+                        ${!isUnlocked ? 'Заблокировано' : (canAfford ? 'Купить' : 'Не хватает')}
+                    </button>
+                `;
+                shopGrid.appendChild(div);
+            });
+            
+            document.querySelectorAll('#shopGrid .shop-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    buyShopItem(id);
+                });
+            });
+        }
+        
+        function checkShopItemUnlock(item) {
+            if (!item.requires) return true;
+            
+            const requiredItem = shopItems.find(i => i.unlockId === item.requires);
+            if (!requiredItem) return true;
+            
+            return requiredItem.count >= item.requiresCount;
+        }
+        
+        function buyShopItem(id) {
+            const item = shopItems.find(i => i.id === id);
+            if (!item.unlocked) return;
+            
+            const discountMultiplier = 1 - (shopDiscount - 1);
+            const cost = Math.floor(item.baseCost * Math.pow(upgradeCostMultiplier, item.count) * discountMultiplier);
+            
+            if (cookies >= cost) {
+                cookies -= cost;
+                item.count++;
+                totalUpgradesBought++;
+                
+                const increaseValue = item.value * (1 + (item.count - 1) * 0.1);
+                
+                switch(item.effect) {
+                    case 'cph':
+                        cookiesPerHour += increaseValue;
+                        break;
+                    case 'cpc':
+                        cookiesPerClick += increaseValue;
+                        break;
+                    case 'energy':
+                        maxEnergy += increaseValue;
+                        currentEnergy = maxEnergy;
+                        break;
+                    case 'energyRate':
+                        energyRestoreRate += increaseValue;
+                        break;
+                    case 'passiveIncome':
+                        passiveIncomeMultiplier += increaseValue;
+                        break;
+                }
+                
+                let unlockedSomething = false;
+                shopItems.forEach(otherItem => {
+                    if (!otherItem.unlocked && checkShopItemUnlock(otherItem)) {
+                        otherItem.unlocked = true;
+                        unlockedSomething = true;
+                    }
+                });
+                
+                if (unlockedSomething) {
+                    showNotification("Новые улучшения разблокированы! 🔓", "achievement");
+                    setTimeout(() => initShop(), 100);
+                }
+                
+                updateDisplay();
+                updateEnergyDisplay();
+                updateStats();
+                initShop();
+                
+                showNotification(`Куплено: ${item.name} (ур. ${item.count}) 🛒`);
+                
+                saveGame();
+            }
+        }
+        
+        // ========== БУСТЫ ==========
+        function initBoosts() {
+            const boostsGrid = document.getElementById('boostsGrid');
+            boostsGrid.innerHTML = '';
+            
+            boosts.forEach(boost => {
+                let isUnlocked = checkBoostUnlock(boost);
+                
+                const div = document.createElement('div');
+                div.className = `shop-item ${isUnlocked ? '' : 'locked'}`;
+                
+                const statusElemId = `boostStatus${boost.id}`;
+                const isActive = isBoostActive(boost.effect);
+                const canAfford = cookies >= boost.cost;
+                
+                let unlockInfo = '';
+                if (!isUnlocked && boost.requires) {
+                    const requiredCount = boostUsageCount[boost.requires] || 0;
+                    const needed = boost.requiresCount - requiredCount;
+                    if (needed > 0) {
+                        const boostName = boosts.find(b => b.unlockId === boost.requires)?.name || boost.requires;
+                        unlockInfo = `<div class="unlock-info">Для разблокировки нужно использовать еще ${needed} ${boostName.toLowerCase()}</div>`;
+                    }
+                }
+                
+                div.innerHTML = `
+                    <div class="shop-icon">${boost.icon}</div>
+                    <div class="shop-name">${boost.name}</div>
+                    <div class="shop-desc">${boost.desc}</div>
+                    <div class="shop-cost">${formatNumber(boost.cost)}</div>
+                    ${unlockInfo}
+                    <div class="item-info">
+                        <span>Статус:</span>
+                        <span class="item-count" id="${statusElemId}">${isActive ? 'Активно' : 'Не активно'}</span>
+                    </div>
+                    <button class="shop-btn ${!canAfford && isUnlocked && !isActive ? 'red' : ''}" data-id="${boost.id}" ${!isUnlocked || isActive ? 'disabled' : ''}>
+                        ${!isUnlocked ? 'Заблокировано' : (isActive ? 'Активно' : (canAfford ? 'Активировать' : 'Не хватает'))}
+                    </button>
+                `;
+                boostsGrid.appendChild(div);
+            });
+            
+            document.querySelectorAll('#boostsGrid .shop-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    activateBoost(id);
+                });
+            });
+        }
+        
+        function checkBoostUnlock(boost) {
+            if (!boost.requires) return true;
+            
+            return (boostUsageCount[boost.requires] || 0) >= boost.requiresCount;
+        }
+        
+        function activateBoost(id) {
+            const boost = boosts.find(b => b.id === id);
+            if (!checkBoostUnlock(boost)) return;
+            
+            const statusElem = document.getElementById(`boostStatus${id}`);
+            
+            if (cookies >= boost.cost && !isBoostActive(boost.effect)) {
+                cookies -= boost.cost;
+                totalBoostsUsed++;
+                
+                if (boost.unlockId && boostUsageCount[boost.unlockId] !== undefined) {
+                    boostUsageCount[boost.unlockId]++;
+                }
+                
+                switch(boost.effect) {
+                    case 'clickMultiplier':
+                        activeBoosts.clickMultiplier.active = true;
+                        activeBoosts.clickMultiplier.timeLeft = boost.duration;
+                        activeBoosts.clickMultiplier.value = boost.value;
+                        break;
+                }
+                
+                statusElem.textContent = `Активно (${boost.duration}с)`;
+                updateDisplay();
+                updateEnergyDisplay();
+                
+                let unlockedSomething = false;
+                boosts.forEach(otherBoost => {
+                    if (!checkBoostUnlock(otherBoost) && (boostUsageCount[otherBoost.requires] || 0) >= otherBoost.requiresCount) {
+                        unlockedSomething = true;
+                    }
+                });
+                
+                if (unlockedSomething) {
+                    showNotification("Новые бусты разблокированы! 🔓", "achievement");
+                    setTimeout(() => initBoosts(), 100);
+                }
+                
+                showNotification(`Активирован: ${boost.name} ⚡`);
+                
+                saveGame();
+            }
+        }
+        
+        function isBoostActive(effect) {
+            switch(effect) {
+                case 'clickMultiplier': return activeBoosts.clickMultiplier.active;
+                default: return false;
+            }
+        }
+        
+        function updateBoosts() {
+            let needsUpdate = false;
+            
+            boosts.forEach(boost => {
+                const statusElem = document.getElementById(`boostStatus${boost.id}`);
+                let boostActive = false;
+                let boostObj;
+                
+                switch(boost.effect) {
+                    case 'clickMultiplier':
+                        boostActive = activeBoosts.clickMultiplier.active;
+                        boostObj = activeBoosts.clickMultiplier;
+                        break;
+                }
+                
+                if (boostActive && boostObj) {
+                    boostObj.timeLeft -= 0.1;
+                    if (boostObj.timeLeft <= 0) {
+                        switch(boost.effect) {
+                            case 'clickMultiplier':
+                                activeBoosts.clickMultiplier.active = false;
+                                activeBoosts.clickMultiplier.value = 1;
+                                break;
+                        }
+                        needsUpdate = true;
+                    }
+                    
+                    if (statusElem) {
+                        statusElem.textContent = `Активно (${Math.ceil(boostObj.timeLeft)}с)`;
+                    }
+                }
+            });
+            
+            if (needsUpdate) {
+                initBoosts();
+            }
+        }
+        
+        // ========== ДОСТИЖЕНИЯ ==========
+        function initAchievements() {
+            const achievementsList = document.getElementById('achievementsList');
+            achievementsList.innerHTML = '';
+            
+            const unlockedCount = achievements.filter(a => a.unlocked).length;
+            
+            achievements.forEach(achievement => {
+                const div = document.createElement('div');
+                div.className = `achievement-item ${achievement.unlocked ? '' : 'locked'}`;
+                
+                let currentValue = 0;
+                let progress = 0;
+                
+                switch(achievement.id) {
+                    case 1:
+                        currentValue = totalCookiesEver;
+                        progress = Math.min(100, (currentValue / achievement.goal) * 100);
+                        break;
+                }
+                
+                div.innerHTML = `
+                    <div class="achievement-icon">${achievement.icon}</div>
+                    <div class="achievement-info">
+                        <h4>${achievement.name}</h4>
+                        <p>${achievement.desc}</p>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${progress}%"></div>
+                        </div>
+                        <div style="font-size: 0.8rem; color: #78909c; margin-top: 5px;">
+                            ${achievement.unlocked ? '✔️ Получено' : `${progress.toFixed(1)}%`}
+                            ${!achievement.unlocked && achievement.reward ? `| Награда: ${formatNumber(achievement.reward)}` : ''}
+                        </div>
+                    </div>
+                `;
+                achievementsList.appendChild(div);
+            });
+        }
+        
+        function checkAchievements() {
+            let unlockedNew = false;
+            
+            achievements.forEach(achievement => {
+                if (!achievement.unlocked) {
+                    let conditionMet = false;
+                    
+                    switch(achievement.id) {
+                        case 1:
+                            conditionMet = totalCookiesEver >= achievement.goal;
+                            break;
+                    }
+                    
+                    if (conditionMet) {
+                        achievement.unlocked = true;
+                        unlockedNew = true;
+                        
+                        cookies += achievement.reward;
+                        
+                        showNotification(`Достижение: ${achievement.name} +${formatNumber(achievement.reward)} печенек 🏆`, "achievement");
+                        
+                        saveGame();
+                    }
+                }
+            });
+            
+            if (unlockedNew) {
+                initAchievements();
+                updateDisplay();
+                updateStats();
+            }
+        }
+        
+        // ========== ПРЕСТИЖ ==========
+        function initPrestigeUpgrades() {
+            const container = document.getElementById('prestigeUpgradesList');
+            container.innerHTML = '';
+            
+            prestigeUpgrades.forEach(upgrade => {
+                const div = document.createElement('div');
+                div.className = 'upgrade-item';
+                const cost = upgrade.baseCost * (upgrade.count + 1);
+                const canBuy = prestigePoints >= cost && upgrade.count < upgrade.maxLevel;
+                
+                let currentBonus = upgrade.count * upgrade.value * 100;
+                let nextBonus = (upgrade.count + 1) * upgrade.value * 100;
+                
+                div.innerHTML = `
+                    <div class="upgrade-info">
+                        <h4>${upgrade.name} (${upgrade.count}/${upgrade.maxLevel})</h4>
+                        <p>${upgrade.desc}</p>
+                        <div style="font-size: 0.8rem; color: #43a047;">
+                            Сейчас: +${currentBonus.toFixed(1)}% | Следующий: +${nextBonus.toFixed(1)}%
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="upgrade-cost">${cost}</div>
+                        <button class="upgrade-btn" data-id="${upgrade.id}" ${!canBuy || upgrade.count >= upgrade.maxLevel ? 'disabled' : ''}>
+                            ${upgrade.count >= upgrade.maxLevel ? 'Макс' : 'Прокачать'}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            document.querySelectorAll('#prestigeUpgradesList .upgrade-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    buyPrestigeUpgrade(id);
+                });
+            });
+        }
+        
+        function buyPrestigeUpgrade(id) {
+            const upgrade = prestigeUpgrades.find(u => u.id === id);
+            const cost = upgrade.baseCost * (upgrade.count + 1);
+            
+            if (prestigePoints >= cost && upgrade.count < upgrade.maxLevel) {
+                prestigePoints -= cost;
+                upgrade.count++;
+                
+                switch(upgrade.effect) {
+                    case 'incomeMultiplier':
+                        prestigeBonus += upgrade.value;
+                        break;
+                }
+                
+                initPrestigeUpgrades();
+                updatePrestigeDisplay();
+                updateDisplay();
+                initShop();
+                
+                showNotification(`Прокачано: ${upgrade.name} ⭐`);
+                
+                saveGame();
+            }
+        }
+        
+        function updatePrestigeDisplay() {
+            const progress = Math.min(100, (totalCookiesEver / prestigeRequirement) * 100);
+            
+            prestigeRequirementElem.textContent = formatNumber(prestigeRequirement);
+            prestigeBonusElem.textContent = `Текущий бонус: +${((prestigeBonus - 1) * 100).toFixed(1)}%`;
+            prestigeProgress.style.width = `${progress}%`;
+            prestigeProgressText.textContent = `Прогресс: ${progress.toFixed(1)}%`;
+            prestigeCountElem.textContent = prestigeCount;
+            prestigePointsElem.textContent = prestigePoints;
+            prestigeValue.textContent = prestigeCount;
+            
+            infoNextPrestige.textContent = formatNumber(prestigeRequirement);
+            infoPrestigeBonus.textContent = ((prestigeBonus - 1) * 100).toFixed(1);
+            
+            prestigeResetBtn.disabled = totalCookiesEver < prestigeRequirement;
+            
+            if (totalCookiesEver >= prestigeRequirement) {
+                prestigeResetBtn.textContent = 'Сбросить и получить престиж';
+            } else {
+                prestigeResetBtn.textContent = 'Не хватает печенек';
+            }
+        }
+        
+        prestigeResetBtn.addEventListener('click', () => {
+            if (totalCookiesEver >= prestigeRequirement) {
+                if (confirm(`Переродиться и получить престиж?\n\nВы получите очки престижа.\nВесь текущий прогресс сбросится, но статистика сохранится.`)) {
+                    const pointsEarned = Math.max(1, Math.floor(totalCookiesEver / prestigeRequirement));
+                    prestigePoints += pointsEarned;
+                    
+                    cookies = 100;
+                    cookiesPerHour = 0;
+                    cookiesPerClick = 1;
+                    currentEnergy = maxEnergy = 500;
+                    energyRestoreRate = 1;
+                    passiveIncomeMultiplier = 1.0;
+                    
+                    shopItems.forEach(item => {
+                        item.count = 0;
+                    });
+                    
+                    shopItems.forEach(item => {
+                        if (item.requires) {
+                            item.unlocked = false;
+                        }
+                    });
+                    
+                    shopItems.filter(item => !item.requires).forEach(item => {
+                        item.unlocked = true;
+                    });
+                    
+                    Object.keys(activeBoosts).forEach(key => {
+                        activeBoosts[key].active = false;
+                        activeBoosts[key].timeLeft = 0;
+                        if (key === 'clickMultiplier') {
+                            activeBoosts[key].value = 1;
+                        }
+                    });
+                    
+                    prestigeCount++;
+                    prestigeRequirement = Math.floor(prestigeRequirement * 1.5);
+                    gameLevel++;
+                    
+                    initShop();
+                    initBoosts();
+                    updateDisplay();
+                    updateEnergyDisplay();
+                    updatePrestigeDisplay();
+                    updateStats();
+                    initPrestigeUpgrades();
+                    
+                    showNotification(`Престиж ${prestigeCount}! +${pointsEarned} очков престижа 🌟`, "prestige");
+                    
+                    saveGame();
+                }
+            }
+        });
+        
+        // ========== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ ==========
+        function updateDisplay() {
+            cookieCounter.textContent = `${formatNumber(cookies)} печенек`;
+            
+            let incomeMultiplier = activeBoosts.clickMultiplier.value;
+            const currentCPH = cookiesPerHour * incomeMultiplier * prestigeBonus * passiveIncomeMultiplier;
+            cpsValue.textContent = formatNumber(currentCPH);
+            
+            let clickValue = cookiesPerClick;
+            if (activeBoosts.clickMultiplier.active) clickValue *= activeBoosts.clickMultiplier.value;
+            clickValue *= prestigeBonus;
+            
+            cpcValue.textContent = `+${clickValue.toFixed(1)}`;
+        }
+        
+        function updateStats() {
+            statClicks.textContent = formatNumber(totalClicks);
+            statCookies.textContent = formatNumber(cookies);
+            statTotalCookiesEver.textContent = formatNumber(totalCookiesEver);
+            statLevel.textContent = gameLevel;
+            statMaxCPS.textContent = formatNumber(maxCPH);
+            statEnergy.textContent = formatNumber(maxEnergy);
+            statBoosts.textContent = totalBoostsUsed;
+            statUpgrades.textContent = totalUpgradesBought;
+            statPrestigeCount.textContent = prestigeCount;
+            statCriticalHits.textContent = totalCriticalHits;
+        }
+        
+        function updateTime() {
+            playTime++;
+            const hours = Math.floor(playTime / 3600);
+            const minutes = Math.floor((playTime % 3600) / 60);
+            const seconds = playTime % 60;
+            
+            let timeString = '';
+            if (hours > 0) {
+                timeString += `${hours}:`;
+            }
+            timeString += `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            statTime.textContent = timeString;
+        }
+        
+        // ========== ФОРМАТИРОВАНИЕ ЧИСЕЛ ==========
+        function formatNumber(num) {
+            if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 10000) return (num / 1000).toFixed(1) + 'K';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return Math.floor(num).toString();
+        }
+        
+        // ========== МОДАЛЬНЫЕ ОКНА ==========
+        menuShop.addEventListener('click', () => openModal('shopModal'));
+        menuBoosts.addEventListener('click', () => openModal('boostsModal'));
+        menuAchievements.addEventListener('click', () => openModal('achievementsModal'));
+        menuPrestige.addEventListener('click', () => openModal('prestigeModal'));
+        leaderboardBtn.addEventListener('click', () => openModal('leaderboardModal'));
+        statsBtn.addEventListener('click', () => openModal('statsModal'));
+        
+        document.querySelectorAll('.close-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const modalId = this.getAttribute('data-modal');
+                closeModal(modalId);
+            });
+        });
+        
+        modalOverlay.addEventListener('click', closeAllModals);
+        
+        function openModal(modalId) {
+            menuBtns.forEach(btn => btn.classList.remove('active'));
+            
+            switch(modalId) {
+                case 'shopModal':
+                    menuShop.classList.add('active');
+                    initShop();
+                    break;
+                case 'boostsModal':
+                    menuBoosts.classList.add('active');
+                    initBoosts();
+                    break;
+                case 'achievementsModal':
+                    menuAchievements.classList.add('active');
+                    break;
+                case 'prestigeModal':
+                    menuPrestige.classList.add('active');
+                    break;
+                case 'leaderboardModal':
+                    updateLeaderboardDisplay();
+                    break;
+            }
+            
+            modalOverlay.classList.add('active');
+            const modal = document.getElementById(modalId);
+            modal.classList.add('active');
+            
+            setTimeout(() => {
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.scrollTop = 0;
+                }
+            }, 10);
+            
+            if (modalId === 'statsModal') {
+                updateStats();
+            }
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('active');
+            modalOverlay.classList.remove('active');
+            
+            setTimeout(() => {
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.scrollTop = 0;
+                }
+            }, 10);
+        }
+        
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.scrollTop = 0;
+                }
+            });
+            modalOverlay.classList.remove('active');
+        }
+        
+        refreshLeaderboardBtn.addEventListener('click', function() {
+            refreshLeaderboard();
+        });
+        
+        // ========== УВЕДОМЛЕНИЯ ==========
+        function showNotification(text, type = "normal") {
+            notificationText.textContent = text;
+            notification.className = "notification show";
+            
+            if (type === "prestige") {
+                notification.classList.add("prestige");
+            } else if (type === "achievement") {
+                notification.classList.add("achievement");
+            } else if (type === "energy") {
+                notification.classList.add("energy");
+            } else if (type === "offline") {
+                notification.classList.add("offline");
+            }
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // ========== ОБРАБОТКА ВЫХОДА ИЗ СТРАНИЦЫ ==========
+        window.addEventListener('beforeunload', function(e) {
+            saveGame();
+        });
+        
+        window.addEventListener('pagehide', function(e) {
+            saveGame();
+        });
+        
+        window.addEventListener('visibilitychange', function(e) {
+            if (document.hidden) {
+                saveGame();
+            } else {
+                showOfflineIncome();
+            }
+        });
+        
+        // ========== ЗАПУСК ИГРЫ ==========
+        initGame();
+        
+        // Экспорт для отладки
+        window.globalLeaderboard = globalLeaderboard;
+        window.syncLeaderboard = syncLeaderboard;
+        window.refreshLeaderboard = refreshLeaderboard;
+        
+    </script>
+</body>
+</html>
