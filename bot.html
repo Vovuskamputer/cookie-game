@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Код Telegram бота для Cookie Empire</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        pre { background: #2d2d2d; color: white; padding: 20px; border-radius: 10px; overflow-x: auto; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Код Telegram бота для Cookie Empire</h1>
+        <p>Скопируй этот код и используй на Glitch.com или другом хостинге:</p>
+        
+        <h3>📝 Файл: <code>bot.js</code></h3>
+        <pre>
+const TelegramBot = require('node-telegram-bot-api');
+
+// ⚠️ ЗАМЕНИ ЭТО НА СВОЙ ТОКЕН ОТ @BotFather!
+const TOKEN = 'ТВОЙ_ТОКЕН_ЗДЕСЬ';
+
+// ⚠️ ЗАМЕНИ ЭТО НА СВОЙ URL С GITHUB PAGES!
+const GAME_URL = 'https://ТВОЙНИК.github.io/cookie-empire/game.html';
+
+const bot = new TelegramBot(TOKEN, { polling: true });
+console.log('✅ Бот запущен!');
+
+// Команда /start
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    const name = msg.from.first_name || 'Игрок';
+    
+    bot.sendMessage(chatId, 
+`🎮 *Привет, ${name}!* 🍪
+
+*Cookie Empire* - самая крутая игра про печеньки!
+
+*Твоя ссылка на игру:*
+${GAME_URL}
+
+Нажми кнопку ниже чтобы начать!`, 
+    {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [[{
+                text: '🎮 ИГРАТЬ В COOKIE EMPIRE',
+                url: GAME_URL
+            }]]
+        }
+    });
+});
+
+// Команда /play
+bot.onText(/\/play/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const name = msg.from.first_name || 'Игрок';
+    
+    // Ссылка с параметрами пользователя
+    const gameLink = `${GAME_URL}?player=tg_${userId}&name=${encodeURIComponent(name)}`;
+    
+    bot.sendMessage(chatId, '🎮 Открываю игру...', {
+        reply_markup: {
+            inline_keyboard: [[{
+                text: '🎮 ОТКРЫТЬ ИГРУ',
+                url: gameLink
+            }]]
+        }
+    });
+});
+        </pre>
+        
+        <h3>📦 Файл: <code>package.json</code></h3>
+        <pre>
+{
+  "name": "cookie-empire-bot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}
+        </pre>
+    </div>
+</body>
+</html>
